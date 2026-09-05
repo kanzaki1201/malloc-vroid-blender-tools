@@ -1,0 +1,23 @@
+schema_version = "1.0.0"
+
+id = "vroid_blender_tools"
+version = "0.2.1"
+name = "Malloc's Vroid Blender Tools"
+tagline = "Clean VRoid bone and material names safely"
+maintainer = "malloc"
+type = "add-on"
+
+website = "https://github.com/kanzaki1201/malloc-vroid-blender-tools"
+
+blender_version_min = "5.0.0"
+
+license = [
+  "SPDX:MIT",
+]
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  ".*",
+  "*.zip",
+]

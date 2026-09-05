@@ -1,0 +1,33 @@
+[project]
+name = "malloc-vroid-blender-tools"
+version = "0.2.1"
+description = "Safe VRoid bone and material naming tools for Blender"
+authors = [{ name = "malloc" }]
+requires-python = ">=3.10"
+license = "MIT"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+exclude = '^vroid_blender_tools[\\/](registration|operators|panel|properties|adapters)(\.py|[\\/])'
+
+[[tool.mypy.overrides]]
+module = [
+  "vroid_blender_tools.adapters",
+  "vroid_blender_tools.operators",
+  "vroid_blender_tools.panel",
+  "vroid_blender_tools.properties",
+  "vroid_blender_tools.registration",
+]
+ignore_errors = true
