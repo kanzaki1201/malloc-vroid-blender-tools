@@ -6,6 +6,8 @@ from .operators import (
     VROIDBLENDERTOOLS_OT_apply_bone_names,
     VROIDBLENDERTOOLS_OT_apply_material_names,
     VROIDBLENDERTOOLS_OT_convert_mtoon_materials,
+    VROIDBLENDERTOOLS_OT_rename_object_and_mesh_from_material,
+    VROIDBLENDERTOOLS_OT_separate_by_material,
 )
 from .panel import (
     VROIDBLENDERTOOLS_PT_tools,
@@ -17,6 +19,8 @@ _CLASSES = (
     VROIDBLENDERTOOLS_OT_apply_bone_names,
     VROIDBLENDERTOOLS_OT_convert_mtoon_materials,
     VROIDBLENDERTOOLS_OT_apply_material_names,
+    VROIDBLENDERTOOLS_OT_separate_by_material,
+    VROIDBLENDERTOOLS_OT_rename_object_and_mesh_from_material,
     VROIDBLENDERTOOLS_PT_tools,
 )
 

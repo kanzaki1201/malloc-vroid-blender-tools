@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import bpy
-from bpy.types import Armature, Context, Image, Material, Object
+from bpy.types import Armature, Context, Image, Material, Mesh, Object
 
 from .material_naming import plan_vroid_material_renames, propose_vroid_material_name
 from .rename_planning import PlannedRename, RenamePlan
@@ -85,6 +85,205 @@ def active_vrm_armature(context: Context) -> Object | None:
     """Return the active official VRM armature, if any."""
     obj = context.active_object
     return obj if is_vrm_armature(obj) else None
+
+
+def selected_editable_meshes(context: Context) -> tuple[Object, ...]:
+    """Return all selected editable mesh objects in Object Mode."""
+    if context.mode != "OBJECT":
+        raise RenameApplicationError("Switch to Object Mode")
+    return tuple(obj for obj in context.selected_editable_objects if obj.type == "MESH")
+
+
+def _assigned_materials(obj: Object) -> tuple[Material, ...]:
+    return tuple(
+        slot.material
+        for slot in obj.material_slots
+        if slot.material is not None and slot.material.name
+    )
+
+
+def plan_selected_mesh_names(
+    context: Context,
+) -> tuple[tuple[tuple[Object, str, int], ...], tuple[str, ...]]:
+    """Plan object and mesh data names from the first assigned material."""
+    renames: list[tuple[Object, str, int]] = []
+    materialless_objects: list[str] = []
+    for obj in selected_editable_meshes(context):
+        materials = _assigned_materials(obj)
+        if not materials:
+            materialless_objects.append(obj.name)
+            continue
+        target_name = materials[0].name
+        if obj.name != target_name or obj.data.name != target_name:
+            renames.append((obj, target_name, len(materials)))
+    return tuple(renames), tuple(materialless_objects)
+
+
+def mesh_names_require_confirmation(
+    renames: Sequence[tuple[Object, str, int]],
+) -> bool:
+    """Return whether a rename chooses between assigned materials."""
+    return any(material_count > 1 for _, _, material_count in renames)
+
+
+def _replace_mesh_data(objects: Sequence[Object], mesh: Mesh) -> None:
+    assignments = tuple(
+        (obj, tuple((slot.link, slot.material) for slot in obj.material_slots))
+        for obj in objects
+    )
+    if any(len(mesh.materials) != len(slots) for _, slots in assignments):
+        raise RenameApplicationError("A mesh changed while its data was copied")
+    for obj, slots in assignments:
+        obj.data = mesh
+        for slot, (link, material) in zip(obj.material_slots, slots, strict=True):
+            slot.link = link
+            slot.material = material
+
+
+def _mesh_name_groups(
+    renames: Sequence[tuple[Object, str, int]],
+) -> tuple[tuple[Mesh, dict[str, list[Object]]], ...]:
+    groups: dict[int, tuple[Mesh, dict[str, list[Object]]]] = {}
+    for obj, target_name, _ in renames:
+        mesh = obj.data
+        _, targets = groups.setdefault(mesh.as_pointer(), (mesh, {}))
+        targets.setdefault(target_name, []).append(obj)
+    return tuple(groups.values())
+
+
+def _mesh_is_editable(mesh: Mesh) -> bool:
+    return mesh.library is None and mesh.is_editable
+
+
+def _prepare_mesh_name_group(
+    context: Context,
+    mesh: Mesh,
+    targets: dict[str, list[Object]],
+) -> tuple[tuple[Mesh, str, tuple[Object, ...]], ...]:
+    planned = {obj.as_pointer() for objects in targets.values() for obj in objects}
+    users = {
+        obj.as_pointer()
+        for obj in context.blend_data.objects
+        if obj.type == "MESH" and obj.data is mesh
+    }
+    reusable_target = mesh.name if mesh.name in targets else None
+    if not _mesh_is_editable(mesh):
+        reusable_target = None
+    elif reusable_target is None and users <= planned:
+        reusable_target = next(iter(targets))
+
+    prepared: list[tuple[Mesh, str, tuple[Object, ...]]] = []
+    for target_name, objects in targets.items():
+        target_mesh = mesh if target_name == reusable_target else mesh.copy()
+        prepared.append((target_mesh, target_name, tuple(objects)))
+    return tuple(prepared)
+
+
+def apply_selected_mesh_names(
+    context: Context,
+    renames: Sequence[tuple[Object, str, int]],
+) -> int:
+    """Rename selected objects and mesh data while protecting shared users."""
+    for obj, target_name, _ in renames:
+        materials = _assigned_materials(obj)
+        if not materials or materials[0].name != target_name:
+            raise RenameApplicationError("A material changed before names were applied")
+
+    prepared = tuple(
+        item
+        for mesh, targets in _mesh_name_groups(renames)
+        for item in _prepare_mesh_name_group(context, mesh, targets)
+    )
+    for target_mesh, _, objects in prepared:
+        if any(obj.data is not target_mesh for obj in objects):
+            _replace_mesh_data(objects, target_mesh)
+    for target_mesh, target_name, _ in prepared:
+        target_mesh.name = target_name
+    for obj, target_name, _ in renames:
+        obj.name = target_name
+    return len(renames)
+
+
+def _needs_material_separation(obj: Object) -> bool:
+    return len({polygon.material_index for polygon in obj.data.polygons}) > 1
+
+
+def _use_effective_data_materials(obj: Object) -> None:
+    for slot in obj.material_slots:
+        if slot.link == "OBJECT":
+            material = slot.material
+            slot.link = "DATA"
+            slot.material = material
+
+
+def _select_only(context: Context, obj: Object) -> None:
+    for selected in tuple(context.selected_objects):
+        selected.select_set(False)
+    obj.select_set(True)
+    context.view_layer.objects.active = obj
+
+
+def _restore_selection(
+    context: Context,
+    objects: Sequence[Object],
+    active: Object | None,
+) -> None:
+    for selected in tuple(context.selected_objects):
+        selected.select_set(False)
+    available = {obj.as_pointer() for obj in context.view_layer.objects}
+    for obj in objects:
+        if obj.as_pointer() in available:
+            obj.select_set(True)
+    if active is not None and active.as_pointer() in available:
+        context.view_layer.objects.active = active
+
+
+def _prepare_material_separation(objects: Sequence[Object]) -> tuple[Object, ...]:
+    separable = tuple(obj for obj in objects if _needs_material_separation(obj))
+    copies = tuple(
+        (obj, obj.data.copy())
+        for obj in separable
+        if obj.data.users > 1 or not _mesh_is_editable(obj.data)
+    )
+    for obj, mesh in copies:
+        _replace_mesh_data((obj,), mesh)
+    for obj in separable:
+        _use_effective_data_materials(obj)
+    return separable
+
+
+def _separate_mesh_object(context: Context, obj: Object) -> tuple[Object, ...]:
+    _select_only(context, obj)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    if bpy.ops.mesh.separate(type="MATERIAL") != {"FINISHED"}:
+        raise RenameApplicationError(f"Could not separate {obj.name}")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return tuple(part for part in context.selected_objects if part.type == "MESH")
+
+
+def separate_selected_meshes_by_material(
+    context: Context,
+    objects: Sequence[Object],
+) -> tuple[Object, ...]:
+    """Separate each selected mesh by material through Blender's native operator."""
+    target_pointers = {obj.as_pointer() for obj in objects}
+    unrelated = tuple(
+        obj for obj in context.selected_objects if obj.as_pointer() not in target_pointers
+    )
+    active = context.view_layer.objects.active
+    results: dict[int, Object] = {obj.as_pointer(): obj for obj in objects}
+
+    try:
+        for obj in _prepare_material_separation(objects):
+            for part in _separate_mesh_object(context, obj):
+                results[part.as_pointer()] = part
+    finally:
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        _restore_selection(context, (*unrelated, *results.values()), active)
+
+    return tuple(results.values())
 
 
 def _bound_meshes(context: Context, armature_object: Object) -> tuple[Object, ...]:
