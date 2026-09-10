@@ -1,6 +1,6 @@
 # Malloc's Vroid Blender Tools
 
-Simple VRoid cleanup tools for Blender 5.0+, by malloc.
+Simple VRoid cleanup tools for Blender 5.0+.
 
 Use this extension with **`.vrm` files exported from VRoid Studio**.
 It does **not** open or edit VRoid Studio's `.vroid` project files.
