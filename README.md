@@ -2,6 +2,8 @@
 
 Simple VRoid cleanup tools for Blender 5.0+.
 
+[日本語](README.ja.md)
+
 Use this extension with **`.vrm` files exported from VRoid Studio**.
 It does **not** open or edit VRoid Studio's `.vroid` project files.
 
