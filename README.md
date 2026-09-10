@@ -27,30 +27,11 @@ These two operations do not require VRM metadata or the VRM Add-on.
 
 ## Install
 
-1. Download this repository with **Code → Download ZIP** and extract it, or clone it.
-2. Build the extension ZIP from the repository folder.
-   On Windows, run this in PowerShell:
-
-   ```powershell
-   .\build.ps1
-   ```
-
-   The script defaults to the Steam Blender installation.
-   For another installation, specify the executable:
-
-   ```powershell
-   .\build.ps1 -BlenderPath 'C:\path\to\blender.exe'
-   ```
-
-   On any platform with Blender on `PATH`, you can use its build command:
-
-   ```sh
-   blender --command extension build --source-dir vroid_blender_tools --output-dir .
-   ```
-
-3. In Blender, open **Edit → Preferences → Get Extensions**.
-4. Open the menu at the top right and select **Install from Disk**.
-5. Select the generated `vroid_blender_tools-0.3.0.zip` and enable **Malloc's Vroid Blender Tools**.
+1. Download `vroid_blender_tools-0.3.0.zip` from the
+   [GitHub release assets](https://github.com/kanzaki1201/malloc-vroid-blender-tools/releases/latest).
+2. In Blender, open **Edit → Preferences → Get Extensions**.
+3. Open the menu at the top right and select **Install from Disk**.
+4. Select the downloaded ZIP and enable **Malloc's Vroid Blender Tools**.
 
 Use the built extension ZIP, not the GitHub source ZIP or `__init__.py`.
 
@@ -110,6 +91,31 @@ Materials shared with unrelated objects are skipped.
 Conversion also skips non-default UV transforms, filtering, and wrapping.
 The preview shows the reason for each skip.
 Conversion skips already-converted materials.
+
+## Build from source
+
+Clone this repository, or download it with **Code → Download ZIP** and extract it.
+From the repository folder, run this in PowerShell:
+
+```powershell
+.\build.ps1
+```
+
+The script defaults to the Steam Blender installation.
+For another installation, specify the executable:
+
+```powershell
+.\build.ps1 -BlenderPath 'C:\path\to\blender.exe'
+```
+
+On any platform with Blender on `PATH`, use:
+
+```sh
+blender --command extension build --source-dir vroid_blender_tools --output-dir .
+```
+
+This creates `vroid_blender_tools-0.3.0.zip` in the repository folder.
+Install it with the [installation steps](#install) above.
 
 ## Source development
 
