@@ -9,11 +9,15 @@ from .adapters import (
     official_vrm_addon_available,
     plan_active_armature_bone_names,
     plan_active_armature_materials,
+    plan_selected_mesh_names,
+    selected_editable_meshes,
 )
 from .operators import (
     VROIDBLENDERTOOLS_OT_apply_bone_names,
     VROIDBLENDERTOOLS_OT_apply_material_names,
     VROIDBLENDERTOOLS_OT_convert_mtoon_materials,
+    VROIDBLENDERTOOLS_OT_rename_object_and_mesh_from_material,
+    VROIDBLENDERTOOLS_OT_separate_by_material,
 )
 from .rename_planning import ConflictReason
 
@@ -29,8 +33,9 @@ def register_ui_properties() -> None:
             name="Tool",
             items=(
                 ("BONES", "Bones", "Rename VRoid bones"),
+                ("MESH", "Mesh", "Edit selected meshes"),
                 ("CONVERT", "Convert", "Convert MToon materials"),
-                ("RENAME", "Rename", "Rename VRoid materials"),
+                ("RENAME", "Rename", "Rename materials, objects, and mesh data"),
             ),
             default="BONES",
         ),
@@ -129,6 +134,47 @@ def _draw_material_names(layout: UILayout, plan: ArmatureMaterialPlan) -> None:
     )
 
 
+def _draw_mesh_tools(layout: UILayout, context: Context) -> None:
+    try:
+        mesh_count = len(selected_editable_meshes(context))
+    except RenameApplicationError as error:
+        layout.label(text=str(error), icon="INFO")
+        mesh_count = 0
+    layout.label(text=f"Selected editable meshes: {mesh_count}", icon="MESH_DATA")
+    row = layout.row()
+    row.enabled = bool(mesh_count)
+    row.operator(
+        VROIDBLENDERTOOLS_OT_separate_by_material.bl_idname,
+        text="Separate by Material",
+        icon="MESH_DATA",
+    )
+
+
+def _draw_object_and_mesh_names(layout: UILayout, context: Context) -> None:
+    try:
+        renames, materialless_objects = plan_selected_mesh_names(context)
+    except RenameApplicationError as error:
+        layout.label(text=str(error), icon="INFO")
+        return
+
+    preview = layout.box()
+    preview.label(text=f"Object and mesh names: {len(renames)}", icon="OBJECT_DATA")
+    for obj, target_name, material_count in renames:
+        preview.label(text=f"{obj.name} / {obj.data.name} → {target_name}")
+        if material_count > 1:
+            preview.label(text="Uses first of multiple materials", icon="ERROR")
+    for object_name in materialless_objects:
+        preview.label(text=f"Skipped {object_name}: No assigned material", icon="ERROR")
+
+    row = layout.row()
+    row.enabled = bool(renames)
+    row.operator(
+        VROIDBLENDERTOOLS_OT_rename_object_and_mesh_from_material.bl_idname,
+        text="Rename Object and Mesh",
+        icon="CHECKMARK",
+    )
+
+
 class VROIDBLENDERTOOLS_PT_tools(Panel):
     """Show the independent VRoid tools in one tabbed panel."""
 
@@ -143,12 +189,29 @@ class VROIDBLENDERTOOLS_PT_tools(Panel):
         tabs = layout.row(align=True)
         tabs.prop(context.window_manager, _TAB_PROPERTY, expand=True)
 
+        tab = getattr(context.window_manager, _TAB_PROPERTY)
+        if tab == "MESH":
+            _draw_mesh_tools(layout, context)
+            return
+
+        if tab == "RENAME":
+            if official_vrm_addon_available():
+                try:
+                    _, plan = plan_active_armature_materials(context)
+                except RenameApplicationError as error:
+                    layout.label(text=str(error), icon="INFO")
+                else:
+                    _draw_material_names(layout, plan)
+            else:
+                layout.label(text="Material names require the official VRM Add-on")
+            _draw_object_and_mesh_names(layout, context)
+            return
+
         if not official_vrm_addon_available():
             layout.label(text="Official VRM Add-on is not enabled", icon="ERROR")
             layout.label(text="Enable it in Preferences → Add-ons")
             return
 
-        tab = getattr(context.window_manager, _TAB_PROPERTY)
         if tab == "BONES":
             _draw_bone_names(layout, context)
             return
@@ -159,7 +222,4 @@ class VROIDBLENDERTOOLS_PT_tools(Panel):
             layout.label(text=str(error), icon="INFO")
             return
 
-        if tab == "CONVERT":
-            _draw_conversion(layout, plan)
-        else:
-            _draw_material_names(layout, plan)
+        _draw_conversion(layout, plan)

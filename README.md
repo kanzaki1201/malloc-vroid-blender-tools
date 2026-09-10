@@ -2,13 +2,18 @@
 
 Simple VRoid cleanup tools for Blender 5.0+, by malloc.
 
+Use this extension with **`.vrm` files exported from VRoid Studio**.
+It does **not** open or edit VRoid Studio's `.vroid` project files.
+
 - **Bones:** clean VRoid bone names with Blender-style `.L` / `.R` suffixes.
+- **Mesh:** separate selected meshes by material.
 - **Convert:** transfer basic MToon inputs to Principled BSDF.
 - **Rename:** clean material names, such as
   `N00_000_00_FaceMouth_00_FACE (Instance)` → `FaceMouth`.
+  Or rename selected objects and their mesh data from their material names.
 
-Each tool has its own preview and action.
-Material conversion and material renaming are independent.
+Each operation has its own action.
+Material conversion, material renaming, and object naming are independent.
 
 ## Requirements
 
@@ -16,6 +21,9 @@ Material conversion and material renaming are independent.
 - The official [VRM Add-on for Blender](https://vrm-addon-for-blender.info/en-us/),
   installed and enabled in a version that supports your Blender version.
 - A VRoid model imported through that add-on as VRM 0.x or VRM 1.0.
+
+Mesh separation and object/mesh naming also work on ordinary Blender meshes.
+These two operations do not require VRM metadata or the VRM Add-on.
 
 ## Install
 
@@ -42,7 +50,7 @@ Material conversion and material renaming are independent.
 
 3. In Blender, open **Edit → Preferences → Get Extensions**.
 4. Open the menu at the top right and select **Install from Disk**.
-5. Select the generated `vroid_blender_tools-0.2.1.zip` and enable **Malloc's Vroid Blender Tools**.
+5. Select the generated `vroid_blender_tools-0.3.0.zip` and enable **Malloc's Vroid Blender Tools**.
 
 Use the built extension ZIP, not the GitHub source ZIP or `__init__.py`.
 
@@ -50,9 +58,10 @@ Use the built extension ZIP, not the GitHub source ZIP or `__init__.py`.
 
 Save a copy of your model before making changes.
 
-1. Import your VRM and select its armature.
+1. Export a `.vrm` from VRoid Studio, then import it with the official VRM Add-on.
+   Select its armature for bone and material tools, or select meshes for mesh tools.
 2. In the 3D View, press `N` and open the **VRoid** sidebar tab.
-3. Choose **Bones**, **Convert**, or **Rename** in the **Malloc's Vroid Blender Tools** panel.
+3. Choose **Bones**, **Mesh**, **Convert**, or **Rename** in the **Malloc's Vroid Blender Tools** panel.
 4. Review the preview and any skipped items.
    The bone preview starts collapsed; click its header to expand it.
 5. Click the action button for that tab.
@@ -61,6 +70,22 @@ The tools use Blender's Undo system (`Ctrl+Z`).
 Bone renaming leaves the hierarchy, rest pose, and transforms unchanged.
 Unknown or conflicting bone names stay unchanged.
 Material names keep their semantic casing; duplicates receive suffixes such as `.001`.
+
+### Selected mesh tools
+
+In Object Mode, select one or more mesh objects.
+
+- **Mesh → Separate by Material:** split each selected mesh with Blender's native separation tool.
+  It processes the whole mesh and leaves the resulting parts selected.
+  It does not rename objects or materials.
+- **Rename → Rename Object and Mesh:** name each selected object and its mesh data
+  after its first non-empty material slot.
+  Confirm the warning if a mesh has multiple materials.
+  Meshes without materials stay unchanged.
+
+Separate first, then rename the selected parts in one click.
+Blender adds numeric suffixes when names conflict.
+Shared mesh data becomes single-user when needed to protect other objects.
 
 ### Basic material conversion
 

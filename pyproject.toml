@@ -1,7 +1,7 @@
 [project]
 name = "malloc-vroid-blender-tools"
-version = "0.2.1"
-description = "Safe VRoid bone and material naming tools for Blender"
+version = "0.3.0"
+description = "Bone, mesh, and material tools for VRoid-exported VRM files in Blender"
 authors = [{ name = "malloc" }]
 requires-python = ">=3.10"
 license = "MIT"

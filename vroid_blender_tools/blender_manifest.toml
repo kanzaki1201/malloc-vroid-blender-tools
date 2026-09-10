@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 
 id = "vroid_blender_tools"
-version = "0.2.1"
+version = "0.3.0"
 name = "Malloc's Vroid Blender Tools"
-tagline = "Clean VRoid bone and material names safely"
+tagline = "Clean bones, meshes, and materials in VRoid-exported VRM files"
 maintainer = "malloc"
 type = "add-on"
 
